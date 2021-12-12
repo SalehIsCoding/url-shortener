@@ -3,8 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const app = express();
+var isUri = require('isuri');
 const bodyParser = require('body-parser');
 mongoose.connect('mongodb+srv://lee:lee@cluster0.wtyhr.mongodb.net/linkshortener?retryWrites=true&w=majority')
+var httpRegex = isUri.createUriRegex({ scheme: [ /https?/ ] });
+
 
 let linkSchema = new mongoose.Schema({
   org:String,
@@ -60,16 +63,12 @@ app.get('/api/hello', function(req, res) {
 });
 
 app.post('/api/shorturl',(req,res,next)=>{
-  var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-    '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-  if(pattern.test(req.body.url)){
+  let url = req.body.url;
+  
+  if(!httpRegex.test(url))
+    res.json({error:'invalid url'});
+  else
     next();
-  }
-  res.json({error:'invalid url'});
 },(req,res)=>{
   let url = req.body.url;
   shortUrl(url,(err,result)=>{
@@ -78,10 +77,10 @@ app.post('/api/shorturl',(req,res,next)=>{
   })
 });
 
-app.get('/api/shorturl/:id',(req,res,next)=>{
+app.get('/api/shorturl/:id?',(req,res,next)=>{
   Link.findOne({sh:req.params.id},{},(err,result)=>{
     if(err) throw err;
-    res.redirect(result.org);
+    req.redirect(result.org);
   });
   next();
 },(req,res)=>{
